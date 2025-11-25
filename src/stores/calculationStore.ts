@@ -381,31 +381,69 @@ export const useCalculationStore = create<CalculationStore>()(
                     //   body: JSON.stringify(apiRequest)
                     // })
 
-                    // 임시 Mock Response
+                    // Mock Response - 실제 입력 데이터 기반 GLEC Framework 계산
                     await new Promise(resolve => setTimeout(resolve, 1500))
+
+                    // 화물 중량 (API Request는 항상 kg 단위)
+                    const cargoWeightKg = apiRequest.cargo.weight
+                    const cargoWeightTon = cargoWeightKg / 1000
+
+                    // 총 거리
+                    const totalDistance = apiRequest.routes.reduce((sum, r) => sum + r.distance, 0)
+
+                    // 운송 활동 = 화물 중량(ton) × 거리(km)
+                    const transportActivity = cargoWeightTon * totalDistance
+
+                    // GLEC Framework v3.0 배출 계수 (gCO2e/t-km)
+                    // 출처: Global Logistics Emissions Council Framework
+                    const emissionFactors: Record<string, number> = {
+                        truck: 62,      // 도로 운송 (일반 트럭)
+                        ship: 8,        // 해상 운송 (컨테이너선)
+                        rail: 22,       // 철도 운송 (전기/디젤 혼합)
+                        air: 602,       // 항공 운송 (화물기)
+                        warehouse: 0    // 물류센터 (거리 기반 아님)
+                    }
+
+                    // 구간별 배출량 계산
+                    const breakdown = apiRequest.routes.map((route, index) => {
+                        const factor = emissionFactors[route.mode] || 62
+                        // 운송 활동 (t-km)
+                        const segmentActivity = cargoWeightTon * route.distance
+                        // 배출량 (gCO2e → kgCO2e)
+                        const emissions = (segmentActivity * factor) / 1000
+                        return {
+                            segment: `segment-${index + 1}`,
+                            distance: route.distance,
+                            emissions: Math.round(emissions * 100) / 100
+                        }
+                    })
+
+                    // 총 배출량 (kgCO2e)
+                    const totalEmissions = breakdown.reduce((sum, b) => sum + b.emissions, 0)
+
+                    // 평균 배출 집약도 계산 (가중 평균)
+                    const avgEmissionIntensity = transportActivity > 0
+                        ? (totalEmissions * 1000) / transportActivity  // kgCO2e → gCO2e / t-km
+                        : 0
 
                     const mockResponse: APIResponse = {
                         calculationId: `calc-${Date.now()}`,
                         status: 'completed',
                         result: {
                             transportActivity: {
-                                value: 9000,
+                                value: Math.round(transportActivity * 100) / 100,
                                 unit: 't-km'
                             },
                             emissionIntensity: {
-                                value: 12.5,
+                                value: Math.round(avgEmissionIntensity * 10) / 10,
                                 unit: 'gCO2e/t-km',
                                 source: 'GLEC Framework v3.0'
                             },
                             totalEmissions: {
-                                value: 112.5,
+                                value: Math.round(totalEmissions * 100) / 100,
                                 unit: 'kgCO2e'
                             },
-                            breakdown: apiRequest.routes.map((route, index) => ({
-                                segment: `segment-${index + 1}`,
-                                distance: route.distance,
-                                emissions: route.distance * 0.25 // Mock calculation
-                            }))
+                            breakdown
                         },
                         timestamp: new Date().toISOString()
                     }
