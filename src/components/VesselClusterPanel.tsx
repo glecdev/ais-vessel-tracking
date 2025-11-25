@@ -1,31 +1,31 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Users, TrendingUp, Ship, ChevronDown, ChevronUp } from 'lucide-react'
 import type { Vessel } from '@/types/ais.types'
-import { clusterVessels, gridClusterVessels, type VesselCluster } from '@/utils/vesselClustering'
+import { type VesselCluster } from '@/utils/vesselClustering'
 
 interface VesselClusterPanelProps {
   vessels: Vessel[]
+  clusters: VesselCluster[]
+  clusterMethod: 'dbscan' | 'grid'
+  onClusterMethodChange: (method: 'dbscan' | 'grid') => void
   onSelectCluster?: (cluster: VesselCluster) => void
 }
 
-export function VesselClusterPanel({ vessels, onSelectCluster }: VesselClusterPanelProps) {
-  const [clusterMethod, setClusterMethod] = useState<'dbscan' | 'grid'>('grid')
+export function VesselClusterPanel({
+  vessels,
+  clusters,
+  clusterMethod,
+  onClusterMethodChange,
+  onSelectCluster
+}: VesselClusterPanelProps) {
   const [expandedCluster, setExpandedCluster] = useState<string | null>(null)
 
-  // 클러스터 계산
-  const clusters = useMemo(() => {
-    if (vessels.length < 2) return []
+  // Clusters are now passed as props
 
-    if (clusterMethod === 'dbscan') {
-      return clusterVessels(vessels, 0.5, 3) // 0.5 해리, 최소 3척
-    } else {
-      return gridClusterVessels(vessels, 0.1) // 0.1도 격자
-    }
-  }, [vessels, clusterMethod])
 
   const totalClustered = clusters.reduce((sum, c) => sum + c.vessels.length, 0)
 
-  if (clusters.length === 0) {
+  if (vessels.length < 2 && clusters.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center gap-3 mb-4">
@@ -60,22 +60,20 @@ export function VesselClusterPanel({ vessels, onSelectCluster }: VesselClusterPa
         {/* 클러스터링 방법 선택 */}
         <div className="flex gap-2">
           <button
-            onClick={() => setClusterMethod('grid')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-              clusterMethod === 'grid'
-                ? 'bg-purple-100 text-purple-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            onClick={() => onClusterMethodChange('grid')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${clusterMethod === 'grid'
+              ? 'bg-purple-100 text-purple-700'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             격자 방식
           </button>
           <button
-            onClick={() => setClusterMethod('dbscan')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-              clusterMethod === 'dbscan'
-                ? 'bg-purple-100 text-purple-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            onClick={() => onClusterMethodChange('dbscan')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${clusterMethod === 'dbscan'
+              ? 'bg-purple-100 text-purple-700'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             DBSCAN
           </button>

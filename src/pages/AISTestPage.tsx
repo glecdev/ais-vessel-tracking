@@ -17,6 +17,7 @@ import { ExportPanel } from '@/components/ExportPanel'
 import { VesselClusterPanel } from '@/components/VesselClusterPanel'
 import { ZoneManager } from '@/components/ZoneManager'
 import type { ZoneEvent } from '@/types/geofencing.types'
+import { clusterVessels, gridClusterVessels } from '@/utils/vesselClustering'
 
 const AISSTREAM_API_KEY = import.meta.env.VITE_AISSTREAM_API_KEY || 'YOUR_API_KEY_HERE'
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE'
@@ -45,6 +46,7 @@ export function AISTestPage() {
     const [isExportOpen, setIsExportOpen] = useState(false)
     const [showClusters, setShowClusters] = useState(false)
     const [showZones, setShowZones] = useState(false)
+    const [clusterMethod, setClusterMethod] = useState<'dbscan' | 'grid'>('grid')
 
     const {
         trackingState,
@@ -148,6 +150,17 @@ export function AISTestPage() {
         return result
     }, [vessels, filters])
 
+    // 클러스터 계산
+    const clusters = useMemo(() => {
+        if (filteredVessels.length < 2) return []
+
+        if (clusterMethod === 'dbscan') {
+            return clusterVessels(filteredVessels, 0.5, 3) // 0.5 해리, 최소 3척
+        } else {
+            return gridClusterVessels(filteredVessels, 0.1) // 0.1도 격자
+        }
+    }, [filteredVessels, clusterMethod])
+
     return (
         <div className="min-h-screen bg-gray-100 p-4">
             <div className="max-w-[1920px] mx-auto">
@@ -165,11 +178,10 @@ export function AISTestPage() {
                                 setShowZones(!showZones)
                                 if (!showZones) setShowClusters(false)
                             }}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                                showZones
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${showZones
                                     ? 'bg-blue-100 text-blue-700'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                                }`}
                             aria-label="지역 관리"
                         >
                             <MapPin className="w-5 h-5" />
@@ -187,11 +199,10 @@ export function AISTestPage() {
                                 setShowClusters(!showClusters)
                                 if (!showClusters) setShowZones(false)
                             }}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                                showClusters
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${showClusters
                                     ? 'bg-purple-100 text-purple-700'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                                }`}
                             aria-label="클러스터 보기"
                         >
                             <Users className="w-5 h-5" />
@@ -243,6 +254,10 @@ export function AISTestPage() {
                             selectedTrack={selectedTrack ?? null}
                             isFollowing={trackingState.isFollowing}
                             onSelectVessel={selectVessel}
+                            zones={zones}
+                            clusters={clusters}
+                            showZones={showZones}
+                            showClusters={showClusters}
                         />
 
                         {selectedVessel && (
@@ -267,7 +282,12 @@ export function AISTestPage() {
                                 vesselCounts={vesselCountsByZone}
                             />
                         ) : showClusters ? (
-                            <VesselClusterPanel vessels={filteredVessels} />
+                            <VesselClusterPanel
+                                vessels={filteredVessels}
+                                clusters={clusters}
+                                clusterMethod={clusterMethod}
+                                onClusterMethodChange={setClusterMethod}
+                            />
                         ) : (
                             <VesselList
                                 vessels={filteredVessels}

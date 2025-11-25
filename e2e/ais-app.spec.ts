@@ -82,9 +82,9 @@ test.describe('AIS WebSocket 실시간 테스트 애플리케이션', () => {
     await expect(vesselListHeader).toBeVisible()
 
     // 선박 카드 또는 "데이터를 기다리는 중" 메시지 확인
-    await expect(
-      page.locator('.vessel-marker, text=선박 데이터를 기다리는 중')
-    ).toBeVisible({ timeout: 10000 })
+    const vesselMarker = page.locator('.vessel-marker')
+    const waitingMessage = page.locator('text=선박 데이터를 기다리는 중')
+    await expect(vesselMarker.or(waitingMessage)).toBeVisible({ timeout: 10000 })
 
     await page.screenshot({ path: 'e2e/screenshots/06-vessel-list.png' })
   })

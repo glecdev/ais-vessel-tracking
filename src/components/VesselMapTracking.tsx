@@ -3,6 +3,8 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Vessel } from '@/types/ais.types'
 import type { VesselTrack } from '@/types/tracking.types'
+import type { GeoZone } from '@/types/geofencing.types'
+import type { VesselCluster } from '@/utils/vesselClustering'
 import { formatDistanceToNow } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
@@ -13,6 +15,10 @@ interface VesselMapTrackingProps {
     selectedTrack: VesselTrack | null
     isFollowing: boolean
     onSelectVessel: (mmsi: number) => void
+    zones?: GeoZone[]
+    clusters?: VesselCluster[]
+    showZones?: boolean
+    showClusters?: boolean
 }
 
 interface MarkerData {
@@ -23,6 +29,12 @@ interface MarkerData {
 
 const TRACK_LINE_SOURCE = 'vessel-track'
 const TRACK_LINE_LAYER = 'vessel-track-line'
+const ZONES_SOURCE = 'zones-source'
+const ZONES_FILL_LAYER = 'zones-fill'
+const ZONES_LINE_LAYER = 'zones-line'
+const CLUSTERS_SOURCE = 'clusters-source'
+const CLUSTERS_LAYER = 'clusters-circle'
+const CLUSTERS_COUNT_LAYER = 'clusters-count'
 
 export function VesselMapTracking({
     vessels,
@@ -30,7 +42,11 @@ export function VesselMapTracking({
     selectedMMSI,
     selectedTrack,
     isFollowing,
-    onSelectVessel
+    onSelectVessel,
+    zones = [],
+    clusters = [],
+    showZones = false,
+    showClusters = false
 }: VesselMapTrackingProps) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
@@ -75,6 +91,73 @@ export function VesselMapTracking({
                 }
             })
 
+            // Add Zones Source & Layers
+            map.current!.addSource(ZONES_SOURCE, {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] }
+            })
+
+            map.current!.addLayer({
+                id: ZONES_FILL_LAYER,
+                type: 'fill',
+                source: ZONES_SOURCE,
+                paint: {
+                    'fill-color': ['get', 'color'],
+                    'fill-opacity': 0.2
+                }
+            })
+
+            map.current!.addLayer({
+                id: ZONES_LINE_LAYER,
+                type: 'line',
+                source: ZONES_SOURCE,
+                paint: {
+                    'line-color': ['get', 'color'],
+                    'line-width': 2
+                }
+            })
+
+            // Add Clusters Source & Layers
+            map.current!.addSource(CLUSTERS_SOURCE, {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] }
+            })
+
+            map.current!.addLayer({
+                id: CLUSTERS_LAYER,
+                type: 'circle',
+                source: CLUSTERS_SOURCE,
+                paint: {
+                    'circle-color': '#9333EA', // Purple
+                    'circle-radius': [
+                        'step',
+                        ['get', 'point_count'],
+                        20,
+                        10,
+                        30,
+                        50,
+                        40
+                    ],
+                    'circle-opacity': 0.6,
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff'
+                }
+            })
+
+            map.current!.addLayer({
+                id: CLUSTERS_COUNT_LAYER,
+                type: 'symbol',
+                source: CLUSTERS_SOURCE,
+                layout: {
+                    'text-field': '{point_count}',
+                    'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+                    'text-size': 12
+                },
+                paint: {
+                    'text-color': '#ffffff'
+                }
+            })
+
             setMapLoaded(true)
         })
 
@@ -114,6 +197,65 @@ export function VesselMapTracking({
             })
         }
     }, [selectedTrack, mapLoaded])
+
+    // Update Zones
+    useEffect(() => {
+        if (!map.current || !mapLoaded) return
+
+        const source = map.current.getSource(ZONES_SOURCE) as mapboxgl.GeoJSONSource
+        if (!source) return
+
+        if (showZones && zones.length > 0) {
+            const features = zones.map(zone => convertZoneToGeoJSON(zone))
+            source.setData({
+                type: 'FeatureCollection',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                features: features as any
+            })
+            map.current.setLayoutProperty(ZONES_FILL_LAYER, 'visibility', 'visible')
+            map.current.setLayoutProperty(ZONES_LINE_LAYER, 'visibility', 'visible')
+        } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            source.setData({ type: 'FeatureCollection', features: [] } as any)
+            map.current.setLayoutProperty(ZONES_FILL_LAYER, 'visibility', 'none')
+            map.current.setLayoutProperty(ZONES_LINE_LAYER, 'visibility', 'none')
+        }
+    }, [zones, showZones, mapLoaded])
+
+    // Update Clusters
+    useEffect(() => {
+        if (!map.current || !mapLoaded) return
+
+        const source = map.current.getSource(CLUSTERS_SOURCE) as mapboxgl.GeoJSONSource
+        if (!source) return
+
+        if (showClusters && clusters.length > 0) {
+            const features = clusters.map(cluster => ({
+                type: 'Feature',
+                properties: {
+                    id: cluster.id,
+                    point_count: cluster.vessels.length,
+                    radius: cluster.radius
+                },
+                geometry: {
+                    type: 'Point',
+                    coordinates: [cluster.center.longitude, cluster.center.latitude]
+                }
+            }))
+            source.setData({
+                type: 'FeatureCollection',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                features: features as any
+            })
+            map.current.setLayoutProperty(CLUSTERS_LAYER, 'visibility', 'visible')
+            map.current.setLayoutProperty(CLUSTERS_COUNT_LAYER, 'visibility', 'visible')
+        } else {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            source.setData({ type: 'FeatureCollection', features: [] } as any)
+            map.current.setLayoutProperty(CLUSTERS_LAYER, 'visibility', 'none')
+            map.current.setLayoutProperty(CLUSTERS_COUNT_LAYER, 'visibility', 'none')
+        }
+    }, [clusters, showClusters, mapLoaded])
 
     // Follow selected vessel
     useEffect(() => {
@@ -271,4 +413,80 @@ function createPopupHTML(vessel: Vessel): string {
             </div>
         </div>
     `
+}
+
+// Helper to convert GeoZone to GeoJSON Feature
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function convertZoneToGeoJSON(zone: GeoZone): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let geometry: any
+
+    switch (zone.geometry.type) {
+        case 'circle':
+            geometry = createCirclePolygon(
+                zone.geometry.center.longitude,
+                zone.geometry.center.latitude,
+                zone.geometry.radius
+            )
+            break
+        case 'polygon':
+            geometry = {
+                type: 'Polygon',
+                coordinates: [
+                    [
+                        ...zone.geometry.coordinates.map(c => [c.longitude, c.latitude]),
+                        [zone.geometry.coordinates[0].longitude, zone.geometry.coordinates[0].latitude] // Close the loop
+                    ]
+                ]
+            }
+            break
+        case 'rectangle': {
+            const { north, south, east, west } = zone.geometry.bounds
+            geometry = {
+                type: 'Polygon',
+                coordinates: [
+                    [
+                        [west, north],
+                        [east, north],
+                        [east, south],
+                        [west, south],
+                        [west, north]
+                    ]
+                ]
+            }
+            break
+        }
+    }
+
+    return {
+        type: 'Feature',
+        properties: {
+            id: zone.id,
+            name: zone.name,
+            color: zone.color
+        },
+        geometry
+    }
+}
+
+// Create a polygon approximating a circle
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function createCirclePolygon(lon: number, lat: number, radiusNm: number, points: number = 64): any {
+    const coords = []
+    const km = radiusNm * 1.852
+    const distanceX = km / (111.32 * Math.cos((lat * Math.PI) / 180))
+    const distanceY = km / 110.574
+
+    for (let i = 0; i < points; i++) {
+        const theta = (i / points) * (2 * Math.PI)
+        const x = distanceX * Math.cos(theta)
+        const y = distanceY * Math.sin(theta)
+        coords.push([lon + x, lat + y])
+    }
+    coords.push(coords[0]) // Close the loop
+
+    return {
+        type: 'Polygon',
+        coordinates: [coords]
+    }
 }
