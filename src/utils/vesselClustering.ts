@@ -83,7 +83,7 @@ function getVesselTypeStats(vessels: Vessel[]): Map<string, number> {
   const typeMap = new Map<string, number>()
 
   vessels.forEach(vessel => {
-    const type = vessel.type || 'Unknown'
+    const type = vessel.shipType || vessel.type || 'Unknown'
     typeMap.set(type, (typeMap.get(type) || 0) + 1)
   })
 
@@ -231,7 +231,7 @@ export function gridClusterVessels(
   const clusters: VesselCluster[] = []
   let clusterIndex = 0
 
-  gridMap.forEach((vessels, key) => {
+  gridMap.forEach((vessels, _key) => {
     if (vessels.length >= 2) {
       const center = calculateClusterCenter(vessels)
       const radius = calculateClusterRadius(vessels, center)

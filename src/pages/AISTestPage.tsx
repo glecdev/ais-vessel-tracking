@@ -90,14 +90,9 @@ export function AISTestPage() {
 
     const {
         zones,
-        zoneEvents,
-        vesselStatus,
-        stats: zoneStats,
         addZone,
-        updateZone,
         deleteZone,
         toggleZone,
-        clearZones,
         getVesselsInZone,
     } = useGeofencing(vessels, {
         onZoneEvent: handleZoneEvent,
@@ -267,7 +262,6 @@ export function AISTestPage() {
                             <ZoneManager
                                 zones={zones}
                                 onAddZone={addZone}
-                                onUpdateZone={updateZone}
                                 onDeleteZone={deleteZone}
                                 onToggleZone={toggleZone}
                                 vesselCounts={vesselCountsByZone}

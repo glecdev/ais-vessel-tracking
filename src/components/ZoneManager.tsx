@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { MapPin, Plus, Trash2, Edit2, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { MapPin, Plus, Trash2, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import type { GeoZone } from '@/types/geofencing.types'
 import { getZoneCenter, calculateZoneArea } from '@/utils/geofencing'
 
 interface ZoneManagerProps {
   zones: GeoZone[]
   onAddZone: (zone: Omit<GeoZone, 'id' | 'createdAt'>) => void
-  onUpdateZone: (id: string, updates: Partial<GeoZone>) => void
   onDeleteZone: (id: string) => void
   onToggleZone: (id: string) => void
   vesselCounts?: Map<string, number> // 각 존에 있는 선박 수
@@ -15,13 +14,11 @@ interface ZoneManagerProps {
 export function ZoneManager({
   zones,
   onAddZone,
-  onUpdateZone,
   onDeleteZone,
   onToggleZone,
   vesselCounts = new Map(),
 }: ZoneManagerProps) {
   const [isCreating, setIsCreating] = useState(false)
-  const [editingZone, setEditingZone] = useState<string | null>(null)
 
   // 간단한 원형 존 생성 폼
   const [newZone, setNewZone] = useState({

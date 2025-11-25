@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Vessel } from '@/types/ais.types'
-import type { Notification, NotificationSettings, CollisionAlert } from '@/types/notification.types'
+import type { Notification, NotificationSettings } from '@/types/notification.types'
 import { detectCollisions } from '@/utils/collisionDetection'
 import { nanoid } from 'nanoid'
 

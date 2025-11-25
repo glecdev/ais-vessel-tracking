@@ -65,7 +65,7 @@ export function exportVesselsToCSV(vessels: Vessel[]): void {
   const rows = vessels.map(vessel => [
     String(vessel.mmsi),
     vessel.name,
-    vessel.type,
+    vessel.shipType || vessel.type || '',
     vessel.position ? String(vessel.position.latitude) : '',
     vessel.position ? String(vessel.position.longitude) : '',
     String(vessel.speed),
@@ -75,7 +75,7 @@ export function exportVesselsToCSV(vessels: Vessel[]): void {
     vessel.destination || '',
     vessel.eta || '',
     vessel.callsign || '',
-    vessel.imo || '',
+    vessel.imo ? String(vessel.imo) : '',
     vessel.dimensions?.length !== undefined ? String(vessel.dimensions.length) : '',
     vessel.dimensions?.width !== undefined ? String(vessel.dimensions.width) : '',
     vessel.draught !== undefined ? String(vessel.draught) : '',
@@ -97,7 +97,7 @@ export function exportVesselsToJSON(vessels: Vessel[]): void {
     vessels: vessels.map(vessel => ({
       mmsi: vessel.mmsi,
       name: vessel.name,
-      type: vessel.type,
+      type: vessel.shipType || vessel.type,
       position: vessel.position,
       speed: vessel.speed,
       course: vessel.course,
@@ -138,10 +138,10 @@ export function exportTracksToCSV(tracks: Map<number, VesselTrack>): void {
   const rows: string[][] = []
 
   tracks.forEach(track => {
-    track.points.forEach((point, index) => {
+    track.points.forEach((point: { latitude: number; longitude: number; speed: number; course: number; timestamp: number }, index: number) => {
       rows.push([
         String(track.mmsi),
-        track.vesselName,
+        track.vesselName || '',
         String(index + 1),
         String(point.latitude),
         String(point.longitude),
@@ -167,11 +167,11 @@ export function exportTracksToGeoJSON(tracks: Map<number, VesselTrack>): void {
     type: 'Feature' as const,
     geometry: {
       type: 'LineString' as const,
-      coordinates: track.points.map(p => [p.longitude, p.latitude]),
+      coordinates: track.points.map((p: { longitude: number; latitude: number }) => [p.longitude, p.latitude]),
     },
     properties: {
       mmsi: track.mmsi,
-      vesselName: track.vesselName,
+      vesselName: track.vesselName || '',
       totalDistance: track.totalDistance,
       pointCount: track.points.length,
       startTime: format(track.points[0].timestamp, 'yyyy-MM-dd HH:mm:ss'),
@@ -273,7 +273,7 @@ export function exportFullReport(
     vessels: vessels.map(v => ({
       mmsi: v.mmsi,
       name: v.name,
-      type: v.type,
+      type: v.shipType || v.type,
       position: v.position,
       speed: v.speed,
       course: v.course,
@@ -281,7 +281,7 @@ export function exportFullReport(
     })),
     tracks: Array.from(tracks.values()).map(track => ({
       mmsi: track.mmsi,
-      vesselName: track.vesselName,
+      vesselName: track.vesselName || '',
       totalDistance: track.totalDistance,
       pointCount: track.points.length,
       points: track.points,

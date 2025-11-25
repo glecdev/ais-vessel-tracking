@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Vessel } from '@/types/ais.types'
 import type { TrackingState, VesselTrack, TrackPoint } from '@/types/tracking.types'
 
+// Re-export for external use
+export type { VesselTrack, TrackPoint } from '@/types/tracking.types'
+
 const MAX_TRACK_POINTS = 100
 
 export function useVesselTracking(vessels: Vessel[]) {

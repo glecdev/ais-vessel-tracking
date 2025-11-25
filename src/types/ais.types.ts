@@ -2,15 +2,25 @@ export interface Vessel {
     mmsi: number
     name: string
     shipType: string
+    type?: string  // alias for shipType
     position: {
         latitude: number
         longitude: number
     }
     course: number  // 0-360
     speed: number   // knots
+    heading?: number  // true heading 0-360
+    status?: string  // navigation status
     destination: string
     eta: string | null
     lastUpdate: number
+    callsign?: string
+    imo?: number
+    dimensions?: {
+        length: number
+        width: number
+    }
+    draught?: number
 }
 
 export interface AISMessage {

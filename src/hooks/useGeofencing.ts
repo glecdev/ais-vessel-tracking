@@ -94,14 +94,12 @@ export function useGeofencing(vessels: Vessel[], options: GeofencingOptions = {}
     vessels.forEach(vessel => {
       if (!vessel.position) return
 
-      const currentStatus = newVesselStatus.get(vessel.mmsi) || {
+      const currentStatus: VesselZoneStatus = newVesselStatus.get(vessel.mmsi) || {
         vesselMMSI: vessel.mmsi,
-        zonesInside: [],
-        lastEnterTime: new Map(),
-        lastExitTime: new Map(),
+        zonesInside: [] as string[],
+        lastEnterTime: new Map<string, number>(),
+        lastExitTime: new Map<string, number>(),
       }
-
-      const previousPosition = previousVesselPositions.current.get(vessel.mmsi)
 
       zones.forEach(zone => {
         if (!zone.enabled) return
@@ -111,7 +109,7 @@ export function useGeofencing(vessels: Vessel[], options: GeofencingOptions = {}
 
         // 진입 이벤트
         if (isInside && !wasInside && zone.events.enter) {
-          currentStatus.zonesInside.push(zone.id)
+          currentStatus.zonesInside = [...currentStatus.zonesInside, zone.id]
           currentStatus.lastEnterTime.set(zone.id, Date.now())
           createZoneEvent(zone, vessel, 'enter')
         }

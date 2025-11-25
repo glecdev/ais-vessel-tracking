@@ -8,6 +8,7 @@ export interface TrackPoint {
 
 export interface VesselTrack {
     mmsi: number
+    vesselName?: string
     points: TrackPoint[]
     startTime: number
     totalDistance: number // nautical miles
